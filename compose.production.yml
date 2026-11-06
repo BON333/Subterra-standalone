@@ -1,0 +1,87 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: subterra_app
+      MYSQL_USER: subterra_app
+      MYSQL_PASSWORD: ${SUBTERRA_DB_PASSWORD:?Set SUBTERRA_DB_PASSWORD in .env.production}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.production}
+      SUBTERRA_CMS_DB_PASSWORD: ${SUBTERRA_CMS_DB_PASSWORD:?Set SUBTERRA_CMS_DB_PASSWORD in .env.production}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./app/subterra_app.sql:/docker-entrypoint-initdb.d/001-subterra.sql:ro
+      - ./deploy/mysql-init-cms-user.sh:/docker-entrypoint-initdb.d/002-cms-user.sh:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      SUBTERRA_DB_HOST: db
+      SUBTERRA_DB_PORT: "3306"
+      SUBTERRA_DB_NAME: subterra_app
+      SUBTERRA_DB_USER: subterra_app
+      SUBTERRA_DB_PASSWORD: ${SUBTERRA_DB_PASSWORD:?Set SUBTERRA_DB_PASSWORD in .env.production}
+      SUBTERRA_ALGORITHM_URL: http://127.0.0.1:8787
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8080"
+
+  directus:
+    image: directus/directus:11
+    restart: unless-stopped
+    environment:
+      KEY: ${DIRECTUS_KEY:?Set DIRECTUS_KEY in .env.production}
+      SECRET: ${DIRECTUS_SECRET:?Set DIRECTUS_SECRET in .env.production}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?Set DIRECTUS_ADMIN_EMAIL in .env.production}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?Set DIRECTUS_ADMIN_PASSWORD in .env.production}
+      DB_CLIENT: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: subterra_app
+      DB_USER: subterra_cms
+      DB_PASSWORD: ${SUBTERRA_CMS_DB_PASSWORD:?Set SUBTERRA_CMS_DB_PASSWORD in .env.production}
+      PUBLIC_URL: https://${DIRECTUS_DOMAIN:?Set DIRECTUS_DOMAIN in .env.production}
+      STORAGE_LOCATIONS: local
+      STORAGE_LOCAL_ROOT: /directus/uploads
+    volumes:
+      - directus_uploads:/directus/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8055"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SUBTERRA_DOMAIN: ${SUBTERRA_DOMAIN:?Set SUBTERRA_DOMAIN in .env.production}
+      DIRECTUS_DOMAIN: ${DIRECTUS_DOMAIN:?Set DIRECTUS_DOMAIN in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - directus
+
+volumes:
+  mysql_data:
+  directus_uploads:
+  caddy_data:
+  caddy_config:

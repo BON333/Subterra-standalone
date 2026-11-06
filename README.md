@@ -57,33 +57,62 @@ ficam no registo do servidor, nao na resposta publica.
 O `Dockerfile` prepara PHP 8.3 com `pdo_mysql` e compila o servico Java 17.
 Pode ser usado em hosts de containers como Railway ou Render; o CMS Directus
 continua separado e nao e incluido na imagem. A aplicacao requer uma base de
-dados MySQL externa.
+dados MySQL externa. Para alojar a app, a base de dados e o CMS juntos sem
+mensalidade, usa o Compose de producao abaixo numa VM Always Free.
 
-1. Cria um servico a partir deste repositorio e deixa o host construir o
-   `Dockerfile` na raiz. O container escuta na porta definida por `PORT`.
-2. Cria uma base MySQL 8 e importa `app/subterra_app.sql` nessa base.
-3. Configura estas variaveis no servico:
+## Deploy completo gratuito (Oracle Cloud Always Free)
 
-   ```text
-   SUBTERRA_DB_HOST=<host MySQL>
-   SUBTERRA_DB_PORT=<porta MySQL>
-   SUBTERRA_DB_NAME=<nome da base de dados>
-   SUBTERRA_DB_USER=<utilizador MySQL>
-   SUBTERRA_DB_PASSWORD=<senha MySQL>
+O `compose.production.yml` inicia PHP + Java, MySQL, Directus e Caddy com HTTPS
+automatico. A Oracle oferece recursos Always Free, mas a criacao da conta
+requer verificacao de identidade/cartao, a capacidade depende da regiao e VMs
+gratuitas inativas podem ser reclamadas. Usa apenas recursos marcados Always
+Free e nao mudes a conta para um plano pago. Consulta
+[Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) e os
+[limites Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm).
+
+1. Cria uma VM Ubuntu ARM A1 na regiao principal da conta, usando apenas a
+   capacidade Always Free, e instala Docker Engine com o plugin Compose.
+   Reserva os recursos de computacao e armazenamento dentro dos limites
+   gratuitos.
+2. Cria registos DNS `A` para `SUBTERRA_DOMAIN` e `DIRECTUS_DOMAIN`, ambos a
+   apontar para o IP publico da VM. Permite entrada TCP nas portas 80 e 443;
+   restringe SSH (porta 22) ao teu IP.
+3. Clona `https://github.com/BON333/Subterra-standalone` na VM e cria o
+   ficheiro local de segredos:
+
+   ```sh
+   cp .env.production.example .env.production
    ```
 
-   `SUBTERRA_ALGORITHM_URL` ja aponta para o servico Java dentro do container;
-   nao e necessario altera-la. Nunca coloques credenciais no repositorio.
-4. Mantem uma instancia do servico: as sessoes PHP usam o armazenamento local
-   do container e perdem-se quando este reinicia. Nao escales horizontalmente
-   sem primeiro configurar armazenamento partilhado para sessoes.
-5. O Directus do `compose.cms.yml` e opcional e precisa de ser alojado a parte,
-   com as variaveis de `.env.cms.example` guardadas como segredos no respetivo
-   servico. Nao publiques o painel sem configurar TLS e restringir o acesso.
+   Gera segredos diferentes para cada variavel de password, `DIRECTUS_KEY` e
+   `DIRECTUS_SECRET` com `openssl rand -hex 32`. Define tambem os dois dominios
+   que configuraste no DNS. Nao publiques `.env.production`.
+4. Inicia os servicos:
 
-O deploy na Vercel tambem e possivel com o runtime Container (Beta), mas requer
-os mesmos servicos externos e nao elimina a limitacao das sessoes. Para esta
-aplicacao, um host de containers tradicional e a opcao mais simples.
+   ```sh
+   docker compose --env-file .env.production -f compose.production.yml up -d --build
+   ```
+
+   Na primeira inicializacao, o MySQL cria as tabelas da app e as contas
+   separadas para a app e o CMS. A base de dados e uploads ficam em volumes
+   persistentes; o script de inicializacao do MySQL so corre quando o volume da
+   base de dados e novo.
+5. Regista as colecoes do Directus depois de o CMS iniciar. O script le
+   `.env.production` e usa o dominio e as credenciais do administrador:
+
+   ```sh
+   python3 scripts/register-directus-collections.py
+   ```
+
+Caddy obtem e renova certificados HTTPS automaticamente quando os registos DNS
+ja apontam para a VM e as portas 80/443 estao acessiveis. Mantem apenas uma
+instancia da app: as sessoes PHP sao locais e terminam quando o container e
+recriado. O painel Directus fica no dominio separado; usa uma password forte
+para a conta administradora.
+
+Railway mantem um plano gratuito com apenas US$1 de credito mensal, insuficiente
+para garantir estes servicos sempre ligados. A Vercel pode correr containers
+em Beta, mas nao fornece aqui a persistencia necessaria para MySQL e uploads.
 
 ## CMS (Directus)
 

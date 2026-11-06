@@ -46,15 +46,20 @@ COLLECTIONS = {
 
 
 def load_env_file() -> None:
-    env_file = ROOT / ".env.cms"
-    if not env_file.is_file():
-        return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    for env_file in (ROOT / ".env.cms", ROOT / ".env.production"):
+        if not env_file.is_file():
             continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key, value)
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key, value)
+
+    if "SUBTERRA_CMS_URL" not in os.environ:
+        domain = os.environ.get("DIRECTUS_DOMAIN")
+        if domain:
+            os.environ["SUBTERRA_CMS_URL"] = f"https://{domain}"
 
 
 def request(path: str, method: str = "GET", payload: dict | None = None,
@@ -75,10 +80,16 @@ def request(path: str, method: str = "GET", payload: dict | None = None,
 
 def main() -> int:
     load_env_file()
-    email = os.environ.get("ADMIN_EMAIL")
-    password = os.environ.get("ADMIN_PASSWORD")
+    email = os.environ.get("ADMIN_EMAIL") or os.environ.get("DIRECTUS_ADMIN_EMAIL")
+    password = (
+        os.environ.get("ADMIN_PASSWORD")
+        or os.environ.get("DIRECTUS_ADMIN_PASSWORD")
+    )
     if not email or not password:
-        print("ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env.cms.", file=sys.stderr)
+        print(
+            "Set Directus admin credentials in .env.cms or .env.production.",
+            file=sys.stderr,
+        )
         return 1
 
     last_error = None

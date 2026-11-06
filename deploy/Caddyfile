@@ -1,0 +1,9 @@
+{$SUBTERRA_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}
+
+{$DIRECTUS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy directus:8055
+}
