@@ -75,8 +75,10 @@ Free e nao mudes a conta para um plano pago. Consulta
    Reserva os recursos de computacao e armazenamento dentro dos limites
    gratuitos.
 2. Cria registos DNS `A` para `SUBTERRA_DOMAIN` e `DIRECTUS_DOMAIN`, ambos a
-   apontar para o IP publico da VM. Permite entrada TCP nas portas 80 e 443;
-   restringe SSH (porta 22) ao teu IP.
+   apontar para o IP publico da VM. Sem dominio proprio, podes usar
+   `<IP>.sslip.io` e `cms.<IP>.sslip.io`; sao nomes DNS gratuitos que apontam
+   para o IP incluido no nome. Dependem de um servico DNS de terceiros.
+   Permite entrada TCP nas portas 80 e 443; restringe SSH (porta 22) ao teu IP.
 3. Clona `https://github.com/BON333/Subterra-standalone` na VM e cria o
    ficheiro local de segredos:
 
