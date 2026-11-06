@@ -52,6 +52,23 @@ JDK 17 ou superior.
 Para verificar a ligacao, abre `/api/teste_conexao.php`. Erros detalhados
 ficam no registo do servidor, nao na resposta publica.
 
+## Demonstracao local com Docker
+
+Para iniciar a app, MySQL, Java e Directus localmente sem configurar um dominio:
+
+```sh
+docker compose --project-name subterra-demo \
+  --env-file .env.production.example \
+  -f compose.production.yml -f compose.demo.yml \
+  up -d --build app directus
+```
+
+Abre <http://127.0.0.1:8080> para a app e <http://127.0.0.1:8056> para o
+Directus. Este exemplo usa credenciais conhecidas e liga as portas apenas a
+`localhost`; e exclusivo para demonstracoes locais, nunca para producao.
+Para parar os servicos sem apagar os dados, executa o mesmo comando com `down`
+em vez de `up -d --build app directus`.
+
 ## Deploy num servico de containers
 
 O `Dockerfile` prepara PHP 8.3 com `pdo_mysql` e compila o servico Java 17.
