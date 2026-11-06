@@ -52,6 +52,39 @@ JDK 17 ou superior.
 Para verificar a ligacao, abre `/api/teste_conexao.php`. Erros detalhados
 ficam no registo do servidor, nao na resposta publica.
 
+## Deploy num servico de containers
+
+O `Dockerfile` prepara PHP 8.3 com `pdo_mysql` e compila o servico Java 17.
+Pode ser usado em hosts de containers como Railway ou Render; o CMS Directus
+continua separado e nao e incluido na imagem. A aplicacao requer uma base de
+dados MySQL externa.
+
+1. Cria um servico a partir deste repositorio e deixa o host construir o
+   `Dockerfile` na raiz. O container escuta na porta definida por `PORT`.
+2. Cria uma base MySQL 8 e importa `app/subterra_app.sql` nessa base.
+3. Configura estas variaveis no servico:
+
+   ```text
+   SUBTERRA_DB_HOST=<host MySQL>
+   SUBTERRA_DB_PORT=<porta MySQL>
+   SUBTERRA_DB_NAME=<nome da base de dados>
+   SUBTERRA_DB_USER=<utilizador MySQL>
+   SUBTERRA_DB_PASSWORD=<senha MySQL>
+   ```
+
+   `SUBTERRA_ALGORITHM_URL` ja aponta para o servico Java dentro do container;
+   nao e necessario altera-la. Nunca coloques credenciais no repositorio.
+4. Mantem uma instancia do servico: as sessoes PHP usam o armazenamento local
+   do container e perdem-se quando este reinicia. Nao escales horizontalmente
+   sem primeiro configurar armazenamento partilhado para sessoes.
+5. O Directus do `compose.cms.yml` e opcional e precisa de ser alojado a parte,
+   com as variaveis de `.env.cms.example` guardadas como segredos no respetivo
+   servico. Nao publiques o painel sem configurar TLS e restringir o acesso.
+
+O deploy na Vercel tambem e possivel com o runtime Container (Beta), mas requer
+os mesmos servicos externos e nao elimina a limitacao das sessoes. Para esta
+aplicacao, um host de containers tradicional e a opcao mais simples.
+
 ## CMS (Directus)
 
 O projecto inclui o Directus como CMS headless para gerir conteudo e ficheiros

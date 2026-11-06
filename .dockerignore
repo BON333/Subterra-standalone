@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+**/build
+**/node_modules
+**/vendor
+**/uploads
